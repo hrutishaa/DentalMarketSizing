@@ -1,0 +1,4 @@
+scenario,monthly_price_usd,basis
+low,149,"Open Dental support rate after the first 12 months, per location (opendental.com/site/fees.html, checked Nov 2026)"
+base,199,"Open Dental initial support rate, per location, up to 3 providers (same page)"
+high,364,"Open Dental initial rate plus the $165 eServices bundle (texting, confirmations, online forms), per location (same page)"
