@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dental Practice Software: Market Sizing and Launch States</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="results.js"></script>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f6f7f9; color: #1d2330; }
+  header { background: #123b4a; color: #fff; padding: 22px 32px; }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0; opacity: .85; font-size: 14px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 40px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .card { background: #fff; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .card .v { font-size: 24px; font-weight: 700; }
+  .card .l { font-size: 12px; color: #5b6475; margin-top: 2px; }
+  section { background: #fff; border-radius: 8px; padding: 16px 18px; margin-top: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  section h2 { font-size: 16px; margin: 0 0 4px; }
+  section p.note { font-size: 13px; color: #5b6475; margin: 0 0 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  table { border-collapse: collapse; font-size: 12px; width: 100%; }
+  th, td { padding: 4px 6px; text-align: right; border-bottom: 1px solid #eef0f3; }
+  th:first-child, td:first-child, td.t, th.t { text-align: left; }
+  tr.top td { background: #eef7f2; }
+  .scroll { overflow-x: auto; max-height: 520px; }
+  footer { font-size: 12px; color: #5b6475; text-align: center; padding: 10px; }
+  a { color: #2b6cb0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dental Practice Software: How Big Is the Market, and Where to Launch First</h1>
+  <p>TAM / SAM / SOM for per-office practice software, built from Census County Business Patterns (2018 and 2023) and a public price list. Every number below is computed by the Java model in the repo.</p>
+</header>
+<main>
+  <div class="cards" id="cards"></div>
+
+  <div class="grid2">
+    <section>
+      <h2>Offices by employee count, 2018 vs 2023</h2>
+      <p class="note">Small offices are shrinking while 10+ employee offices grow, which is the group-practice / DSO consolidation story showing up in Census data.</p>
+      <canvas id="mix" height="240"></canvas>
+    </section>
+    <section>
+      <h2>TAM and SAM by price scenario</h2>
+      <p class="note">TAM = every dental office x 12 months x price. SAM = offices with 5 to 49 employees only.</p>
+      <canvas id="tam" height="240"></canvas>
+      <table id="tamTable" style="margin-top:10px"></table>
+    </section>
+  </div>
+
+  <section>
+    <h2>Launch-state ranking</h2>
+    <p class="note">Base weights: 40% target offices, 20% five-year growth in target offices, 20% payroll per office (ability to pay), 20% target offices per 100k residents (route density). Each criterion is a percentile rank across 50 states + DC. Top 10 highlighted.</p>
+    <div class="scroll"><table id="states"></table></div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>Does the shortlist survive different weights?</h2>
+      <p class="note">How many of the base top 10 stay in the top 10 under each alternative weight set.</p>
+      <table id="stab"></table>
+      <p class="note" id="always" style="margin-top:10px"></p>
+    </section>
+    <section>
+      <h2>SOM: first-three-year ARR in the 10 launch states</h2>
+      <p class="note">Share captured is a planning assumption (1%, 2%, 5%), shown as a grid instead of a single number.</p>
+      <table id="som"></table>
+    </section>
+  </div>
+</main>
+<footer>Data: U.S. Census Bureau, County Business Patterns 2018 and 2023 (NAICS 621210); Census Vintage 2025 population estimates; Open Dental published fees. Code: <a href="https://github.com/hrutishaa/DentalMarketSizing">github.com/hrutishaa/DentalMarketSizing</a></footer>
+<script>
+const R = window.RESULTS;
+const fmt = n => n.toLocaleString('en-US');
+const usdM = n => '$' + (n / 1e6).toFixed(1) + 'M';
+const N = R.national;
+const base = R.tam_sam.find(t => t.scenario === 'base');
+const cards = [
+  [fmt(N.establishments_2023), 'dental offices in the U.S. (2023)'],
+  [fmt(N.sam_establishments_2023), 'offices with 5 to 49 employees (SAM, ' + N.sam_share_pct + '%)'],
+  [usdM(base.tam_usd), 'TAM at $' + base.monthly_price + '/office/month'],
+  [usdM(base.sam_usd), 'SAM at the same price'],
+  [R.som.launch_share_of_sam_pct + '%', 'of SAM sits in the 10 launch states'],
+  [(N.change_50_plus_pct > 0 ? '+' : '') + N.change_50_plus_pct + '%', '50+ employee offices since 2018']
+];
+document.getElementById('cards').innerHTML = cards.map(c => `<div class="card"><div class="v">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('');
+
+new Chart(document.getElementById('mix'), {
+  type: 'bar',
+  data: { labels: R.size_mix.map(m => m.size_class), datasets: [
+    { label: '2018', data: R.size_mix.map(m => m.est_2018), backgroundColor: '#9fb3c8' },
+    { label: '2023', data: R.size_mix.map(m => m.est_2023), backgroundColor: '#123b4a' } ] },
+  options: { plugins: { tooltip: { callbacks: { afterLabel: c => c.datasetIndex === 1 ? 'change ' + R.size_mix[c.dataIndex].change_pct + '%' : '' } } } }
+});
+new Chart(document.getElementById('tam'), {
+  type: 'bar',
+  data: { labels: R.tam_sam.map(t => t.scenario + ' ($' + t.monthly_price + ')'), datasets: [
+    { label: 'TAM', data: R.tam_sam.map(t => t.tam_usd / 1e6), backgroundColor: '#9fb3c8' },
+    { label: 'SAM', data: R.tam_sam.map(t => t.sam_usd / 1e6), backgroundColor: '#2f855a' } ] },
+  options: { scales: { y: { title: { display: true, text: '$ millions per year' } } } }
+});
+document.getElementById('tamTable').innerHTML = '<tr><th class="t">Scenario</th><th class="t">Price basis</th></tr>' +
+  R.pricing.map(p => `<tr><td>${p.scenario} ($${p.monthly_price})</td><td class="t">${p.basis}</td></tr>`).join('');
+
+document.getElementById('states').innerHTML = '<tr><th>#</th><th class="t">State</th><th>Score</th><th>Target offices</th><th>5-yr growth</th><th>Payroll / office</th><th>Target / 100k</th><th>All offices</th></tr>' +
+  R.states.map(s => `<tr class="${s.rank <= 10 ? 'top' : ''}"><td>${s.rank}</td><td class="t">${s.state}</td><td>${s.score}</td><td>${fmt(s.sam_est)}</td><td>${s.sam_growth_pct}%</td><td>$${fmt(s.payroll_per_est)}</td><td>${s.sam_per_100k}</td><td>${fmt(s.est_all)}</td></tr>`).join('');
+
+document.getElementById('stab').innerHTML = '<tr><th class="t">Weight set</th><th class="t">Weights (size, growth, pay, density)</th><th>Kept</th></tr>' +
+  Object.keys(R.weights).map(k => `<tr><td>${k}</td><td class="t">${R.weights[k].join(' / ')}</td><td>${R.top10_overlap_with_base[k]} of 10</td></tr>`).join('');
+document.getElementById('always').textContent = 'In the top 10 under every weight set: ' + R.top10_in_every_weight_set.join(', ') + '.';
+
+const shares = [...new Set(R.som.grid.map(g => g.share_pct))];
+const scen = [...new Set(R.som.grid.map(g => g.scenario))];
+document.getElementById('som').innerHTML = '<tr><th class="t">Price</th>' + shares.map(s => `<th>${s}% share</th>`).join('') + '</tr>' +
+  scen.map(sc => '<tr><td>' + sc + ' ($' + R.som.grid.find(g => g.scenario === sc).monthly_price + ')</td>' +
+    shares.map(s => { const g = R.som.grid.find(x => x.scenario === sc && x.share_pct === s); return `<td>${usdM(g.arr_usd)}<br><span style="color:#5b6475">${fmt(g.offices)} offices</span></td>`; }).join('') + '</tr>').join('');
+</script>
+</body>
+</html>
